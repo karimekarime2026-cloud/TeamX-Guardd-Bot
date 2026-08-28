@@ -1,4 +1,4 @@
-export TELEGRAM_BOT_TOKEN="8765983282:AAFxz0d0swqoQZhOTmeXNrFPhcuKQEZuBJw"
+TOKEN="8765983282:AAFxz0d0swqoQZhOTmeXNrFPhcuKQEZuBJw"
 import os
 import logging
 import sqlite3
