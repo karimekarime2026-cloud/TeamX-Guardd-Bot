@@ -1,3 +1,4 @@
+export TELEGRAM_BOT_TOKEN="8765983282:AAFxz0d0swqoQZhOTmeXNrFPhcuKQEZuBJw"
 import os
 import logging
 import sqlite3
@@ -18,35 +19,35 @@ logger: logging.Logger = logging.getLogger("TeamX-Intelligence-Core")
 
 # --- 2. Database Initialization (SQLite) ---
 def init_db() -> None:
-    conn = sqlite3.connect("teamx_intel.db")
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS security_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            username TEXT,
-            action TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    with sqlite3.connect("teamx_intel.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS security_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                username TEXT,
+                action TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
 
 init_db()
 
 def log_action(user_id: int, username: str, action: str) -> None:
     try:
-        conn = sqlite3.connect("teamx_intel.db")
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO security_logs (user_id, username, action) VALUES (?, ?, ?)", 
-                       (user_id, username, action))
-        conn.commit()
-        conn.close()
+        with sqlite3.connect("teamx_intel.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO security_logs (user_id, username, action) VALUES (?, ?, ?)",
+                (user_id, username, action)
+            )
+            conn.commit()
     except Exception as e:
         logger.error(f"Database error: {e}")
 
 # --- 3. Secure Token Initialization ---
-TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "8765983282:AAFxz0d0swqoQZhOTmeXNrFPhcuKQEZuBJw")
+TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN")
 
 if not TOKEN:
     logger.critical("❌ Critical Error: Bot token is missing.")
@@ -68,6 +69,15 @@ def handle_error(message: types.Message, error: Exception, custom_msg: Optional[
         bot.reply_to(message, escape_markdown(error_text))
     except Exception as ex:
         logger.error(f"Failed to dispatch error reply: {ex}")
+
+# --- Admin Check Helper ---
+def is_admin(chat_id: int, user_id: int) -> bool:
+    try:
+        member = bot.get_chat_member(chat_id, user_id)
+        return member.status in ["creator", "administrator"]
+    except Exception as e:
+        logger.error(f"Failed to check admin status: {e}")
+        return False
 
 # --- /start Command ---
 @bot.message_handler(commands=['start'])
@@ -95,13 +105,13 @@ def whois_command(message: types.Message) -> None:
         if not message.reply_to_message:
             bot.reply_to(message, escape_markdown("⚠️ يرجى الرد على رسالة الشخص المستهدف لجلب تقريره الاستخباراتي."))
             return
-        
+
         target = message.reply_to_message.from_user
         user_id = target.id
         username = target.username or "لا يوجد"
         first_name = target.first_name or "غير معروف"
         is_bot = "نعم" if target.is_bot else "لا"
-        
+
         report = (
             "🕵️‍♂️ *تقرير استعلام عن عنصر (Whois)*\n\n"
             f"🆔 *معرف المستخدم (ID):* `{user_id}`\n"
@@ -142,14 +152,6 @@ def send_info(message: types.Message) -> None:
         bot.reply_to(message, info_text)
     except Exception as e:
         handle_error(message, e)
-
-# --- Admin Check Helper ---
-def is_admin(chat_id: int, user_id: int) -> bool:
-    try:
-        member = bot.get_chat_member(chat_id, user_id)
-        return member.status in ["creator", "administrator"]
-    except Exception:
-        return False
 
 # --- /ban Command (Admin Only) ---
 @bot.message_handler(commands=['ban'])
@@ -192,8 +194,7 @@ def kick_user(message: types.Message) -> None:
             return
 
         target_user = message.reply_to_message.from_user
-        bot.ban_chat_member(message.chat.id, target_user.id)
-        bot.unban_chat_member(message.chat.id, target_user.id)
+        bot.kick_chat_member(message.chat.id, target_user.id)  # Corrected: Use kick_chat_member
         name = target_user.username or target_user.first_name
         log_action(message.from_user.id, message.from_user.username or "unknown", f"KICK_USER_{target_user.id}")
         bot.reply_to(message, escape_markdown(f"🚪 تم إخراج العنصر [{name}] من النطاق وتسجيل العملية."))
@@ -216,4 +217,3 @@ if __name__ == "__main__":
         bot.infinity_polling(skip_pending=True, timeout=30, long_polling_timeout=20)
     except Exception as critical_err:
         logger.critical(f"🔥 Fatal core collapse: {critical_err}")
-
