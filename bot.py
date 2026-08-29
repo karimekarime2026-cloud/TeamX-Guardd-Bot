@@ -1,4 +1,5 @@
-TOKEN="8765983282:AAFxz0d0swqoQZhOTmeXNrFPhcuKQEZuBJw"
+HTTP API:
+"8765983282:AAFxz0d0swqoQZhOTmeXNrFPhcuKQEZuBJw"
 import os
 import logging
 import sqlite3
