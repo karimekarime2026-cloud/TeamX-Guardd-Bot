@@ -1,5 +1,3 @@
-HTTP API:
-"8765983282:AAFxz0d0swqoQZhOTmeXNrFPhcuKQEZuBJw"
 import os
 import logging
 import sqlite3
@@ -76,8 +74,7 @@ def is_admin(chat_id: int, user_id: int) -> bool:
     try:
         member = bot.get_chat_member(chat_id, user_id)
         return member.status in ["creator", "administrator"]
-    except Exception as e:
-        logger.error(f"Failed to check admin status: {e}")
+    except Exception:
         return False
 
 # --- /start Command ---
@@ -99,7 +96,7 @@ def send_welcome(message: types.Message) -> None:
     except Exception as e:
         handle_error(message, e)
 
-# --- /whois Command (Intelligence Feature) ---
+# --- /whois Command ---
 @bot.message_handler(commands=['whois'])
 def whois_command(message: types.Message) -> None:
     try:
@@ -201,6 +198,14 @@ def kick_user(message: types.Message) -> None:
         bot.reply_to(message, escape_markdown(f"🚪 تم إخراج العنصر [{name}] من النطاق وتسجيل العملية."))
     except Exception as e:
         handle_error(message, e, "❌ فشل تنفيذ عملية الطرد.")
+
+# --- Group Message Handler ---
+@bot.message_handler(func=lambda message: message.chat.type in ["group", "supergroup"])
+def group_message_handler(message: types.Message) -> None:
+    try:
+        logger.info(f"Group message from chat {message.chat.id}: {message.text[:30]}...")
+    except Exception as e:
+        handle_error(message, e)
 
 # --- General Message Handler ---
 @bot.message_handler(func=lambda message: True)
